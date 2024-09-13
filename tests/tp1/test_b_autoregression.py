@@ -23,7 +23,9 @@ def test_forecast():
 @pytest.mark.parametrize(
   "weights",
   [
-    np.array([0, 0.9]),
+    np.array([0.5, -0.3]),
+    np.array([-0.3, 0.9]),
+    np.array([1.3, -0.9]),
     np.array([0.1, 0.4, 0.09]),
     np.array([1, -0.02, 0.2, -0.03]),
     np.array([-0.04, -0.84, 0.0, -0.025]),
@@ -44,9 +46,8 @@ def test_fit(weights):
 @pytest.mark.parametrize(
   "weights",
   [
-    np.array([0, -0.3]),
     np.array([0, 1.3]),
-    np.array([0.1, 0.4, -0.09]),
+    np.array([0.1, -0.09, 0.4]),
     np.array([11, 0.4, 0.9]),
   ],
 )
