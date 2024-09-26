@@ -47,7 +47,8 @@ def test_fit(weights):
   "weights",
   [
     np.array([0, 1.3]),
-    np.array([0.1, -0.09, 0.4]),
+    np.array([0.1, -1.2, 0.4]),
+    np.array([0.1, 1.2, -0.4]),
     np.array([11, 0.4, 0.9]),
   ],
 )
