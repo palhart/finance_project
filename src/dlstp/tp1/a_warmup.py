@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import scipy.fft
 import scipy.signal
-
+import matplotlib.pyplot as plt
 
 def generate_random_walk(n_steps: int, std: float) -> np.ndarray:
   """
@@ -19,8 +19,7 @@ def generate_random_walk(n_steps: int, std: float) -> np.ndarray:
   The output is a NumPy array of length n_steps containing the sampled signal.
 
   """
-  raise NotImplementedError()
-
+  return np.cumsum(np.random.normal(0, std, n_steps))
 
 def generate_whitenoise_time_series(
   std: float,
@@ -40,7 +39,11 @@ def generate_whitenoise_time_series(
       - use numpy's random module to generate random numbers
 
   """
-  raise NotImplementedError()
+  n_steps = int(((end_dt - start_dt) / delta_t) + 1)
+  return pd.Series(
+    data=np.random.normal(0, std, n_steps),
+    index=pd.date_range(start_dt, end_dt, freq=delta_t),
+  )
 
 
 def generate_sine_wave(
@@ -61,10 +64,11 @@ def generate_sine_wave(
       - assume the phase to be 0 (first value should be zero)
 
   """
-  raise NotImplementedError()
+  x = np.linspace(0, duration_sec, sampling_freq * duration_sec)
+  y = amplitude * np.sin((2 * np.pi) * ordinary_freq * x)
+  return pd.Series(data=y, index=x)
 
-
-def estimate_sine_wave_params(signal: np.ndarray, sample_freq: int) -> dict:
+def estimate_sine_wave_params(signal: np.ndarray, sample_freq: int):
   """
   Given a time series that is a composite of multiple sine waves, find the frequencies
   and amplitudes of the original sine waves.
@@ -78,4 +82,31 @@ def estimate_sine_wave_params(signal: np.ndarray, sample_freq: int) -> dict:
       - use scipy.signal.find_peaks to find the peak amplitudes
 
   """
-  raise NotImplementedError()
+  yf = scipy.fft.rfft(signal)
+
+ 
+
+
+  yf = np.array(yf)
+
+  #absolut value of the complex number => find the module of the complex number => sqrt(real^2 + imag^2) => magnitude
+  
+  yf_pos = np.abs(yf) 
+
+  yf_norm = yf_pos / (len(signal) / 2)
+  
+  xf = scipy.fft.rfftfreq(len(signal) , 1 / sample_freq)
+
+  peaks, _ = scipy.signal.find_peaks(yf_pos, height=0.1)
+
+  frequencies = xf[peaks]
+
+  #find the amplitudes of the peaks
+
+  amplitudes = yf_norm[peaks]
+
+  result = dict(zip(frequencies, amplitudes))
+
+  return result
+
+

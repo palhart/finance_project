@@ -21,7 +21,11 @@ def compute_all_stock_cross_correlations(stock_prices: pd.DataFrame) -> pd.DataF
 
   """
   assert all(c in stock_prices.columns for c in ("close", "date", "symbol"))
-  raise NotImplementedError()
+
+  result = stock_prices.pivot(index="date", columns="symbol", values="close").corr()
+  return result
+
+
 
 
 def compute_monthly_stock_cross_correlations(
@@ -57,4 +61,14 @@ def compute_monthly_stock_cross_correlations(
         result in NaN values in the resulting correlation matrix. not a problem
 
   """
-  raise NotImplementedError()
+  
+  stock_prices = stock_prices.groupby([pd.Grouper(key='date', freq='MS')]).apply(compute_all_stock_cross_correlations)
+  stock_prices = stock_prices.reset_index()
+
+
+  result = stock_prices.melt(id_vars=['date', 'symbol'], var_name='symbol_b', value_name='corrcoef')
+  result.rename(columns={'symbol': 'symbol_a'}, inplace=True)
+
+  return result
+
+  
