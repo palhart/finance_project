@@ -3,11 +3,11 @@ from datetime import date, timedelta
 import numpy.testing
 import pandas as pd
 from torch.nn import RNN
+from torch.utils.data import DataLoader
 
 from dlstp.tp2.a_data import DailyTempSeqDataset
 from dlstp.tp2.b_model import ElRegressor
 from dlstp.tp2.c_train import cross_val_train, evaluate, iter_cross_val_folds
-from tests.tp2.test_d_forecast import DataLoader
 
 
 def test_iter_cross_val_folds(device):
