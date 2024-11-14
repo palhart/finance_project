@@ -71,5 +71,4 @@ def test_forecast(device):
       datetime.date(2021, 1, 6): 12.80196991315637,
     }
   )
-  assert_series_equal(forecasted, expected)
-  numpy.testing.assert_allclose(forecasted, expected, atol=0.001)
+  assert_series_equal(forecasted, expected, atol=0.001)

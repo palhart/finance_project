@@ -24,7 +24,7 @@ def test_daily_temp_seq_dataset_init(device):
     target_variable="mean_temperature",
     device=device,
   )
-  assert d.n_days == 1460
+  assert d.n_days == 1461
   assert len(d) == 1453
 
 

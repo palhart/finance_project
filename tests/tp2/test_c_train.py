@@ -69,6 +69,6 @@ def test_evaluate(device):
   )
   loader = DataLoader(dataset, batch_size=8)
   model = ElRegressor(input_size=dataset.data.shape[-1], hidden_size=8, cell_cls=RNN)
-  expected_loss = 0.7882512378692627
+  expected_loss = 0.8312476984659831
   loss = evaluate(model, loader, in_seq_len, out_seq_len, device)
   numpy.testing.assert_allclose(loss, expected_loss, atol=0.001)

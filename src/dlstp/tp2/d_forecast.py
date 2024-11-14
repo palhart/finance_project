@@ -88,9 +88,8 @@ def forecast(
         d. Use model.dense to get the next prediction
         e. Apply inverse scaling to the prediction
         f. Store the prediction with its date
-    5. Create a pandas Series from the predictions
-    6. Combine warmup data and predictions in the final Series
-    7. Ensure correct handling of dates throughout the process
+    5. Create a pandas Series from the predictions that should be returned
+    6. Ensure correct handling of dates throughout the process
 
   Remember:
     - Pay attention to tensor shapes and devices (CPU/GPU)
