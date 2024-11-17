@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader
 from dlstp import evaluating
 from dlstp.tp2.a_data import DailyTempSeqDataset
 from dlstp.tp2.b_model import ElRegressor
+from torch.nn import RNN
 
 
 class SequentialLoader(DataLoader):
@@ -105,6 +106,37 @@ def forecast(
   """
   warmup_data_loader = SequentialLoader(warmup_dataset)
   predictions = list()
+  last_hidden_state = None
   with evaluating(model):
     with torch.no_grad():
-      raise NotImplementedError()
+      for x in warmup_data_loader:
+
+        x.to(device)
+        out , hn = model.rnn(x, last_hidden_state) # update hidden state
+        last_hidden_state = hn
+      
+      last_prediction = model.fc(last_hidden_state)
+      predictions.append(last_prediction)
+      next_date = warmup_dataset.end_date
+      for _ in range(n_steps):
+        last_prediction = predictions[-1]
+        next_date = next_date + datetime.timedelta(days=1)
+        time_features = calculate_time_features(next_date).to(device)
+        new_seq = torch.cat((time_features, last_prediction), dim=2)
+        _ , h = model.rnn(new_seq, last_hidden_state)
+        last_hidden_state = h
+        new_prediction = model.fc(last_hidden_state)
+        predictions.append(new_prediction)
+
+  predictions = torch.cat(predictions, dim=1)
+
+  predictions = predictions.squeeze()
+  predictions = predictions.cpu().numpy()
+  predictions = predictions * target_stdscale_std + target_stdscale_mean
+  dates = pd.date_range(
+    start=warmup_dataset.end_date + datetime.timedelta(days=1),
+    periods=n_steps,
+  ).date
+  return pd.Series(predictions[1:], index=dates, dtype='float64')
+
+

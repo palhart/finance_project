@@ -2,8 +2,8 @@ import collections
 from datetime import date, timedelta
 from io import BytesIO
 from typing import Iterator, Literal, Sequence, TypedDict
-
-import numpy as np
+import pandas as pd
+from torch.nn import RNN
 import torch
 from torch.nn import MSELoss
 from torch.optim.adam import Adam
@@ -88,11 +88,37 @@ def iter_cross_val_folds(
   validation fold. In other words, the first yielded pair should have the 1940 decade as
   its validation fold (second tuple value).
 
-  """
+  """    
   start_date: date = train_dataset.start_date
+  end_date: date = train_dataset.end_date
   seq_len = train_dataset.seq_len
-  raise NotImplementedError()
 
+  decade_indices = {}
+
+  for i in range(len(train_dataset)):
+    sequence_start_date = start_date + timedelta(days=i + seq_len)
+    decade = (sequence_start_date.year // 10) * 10
+
+    if decade not in decade_indices:
+      decade_indices[decade] = []
+    
+    decade_indices[decade].append(i)
+
+  decades = sorted(decade_indices.keys())
+
+  for decade in decades:
+    training_decades = [d for d in decades if d != decade]
+
+    training_indices = []
+    for d in training_decades:
+      training_indices.extend(decade_indices[d])
+
+    validation_indices = decade_indices[decade]
+
+    train_fold = Subset(train_dataset, training_indices)
+    valid_fold = Subset(train_dataset, validation_indices)
+
+    yield train_fold, valid_fold
 
 def evaluate(
   model: ElRegressor, loader: DataLoader, in_seq_len: int, out_seq_len: int, device: str
@@ -132,7 +158,33 @@ def evaluate(
     Average loss over the given data samples.
 
   """
-  raise NotImplementedError()
+  model.to(device)
+  model.eval()
+
+  criterion = MSELoss(reduction='sum')
+  total_loss = 0 
+  sample_size = 0
+  with torch.no_grad():
+    for seq in loader:
+
+      seq = seq.to(device = device)
+
+
+      output_seq, _ = model.forward(seq, in_seq_len, out_seq_len)
+
+      eval_seq = seq[:, 1:, -1].unsqueeze(-1)
+
+      sample_size += eval_seq.size(0) * eval_seq.size(1)
+
+
+      loss = criterion(output_seq, eval_seq)
+
+
+      total_loss += loss.item()
+    
+
+  return total_loss / sample_size
+
 
 
 def train_and_early_stop(
@@ -237,7 +289,73 @@ def train_and_early_stop(
     List of losses calculated (both training and validation losses).
 
   """
-  raise NotImplementedError()
+
+  model = ElRegressor(input_size, hidden_size, cell_cls).to(device)
+
+  optimizer = Adam(model.parameters())
+  criterion = MSELoss(reduce='sum')
+
+  best_model = model
+  early_stopping_counter: int = 0
+  losses : list[MeasuredLoss] = []
+  lowest_validation_loss : float = 100.0
+  batch_counter : int = 0 
+  while early_stopping_counter < early_stopping_patience:
+
+    for seq in train_loader:
+      model.train()
+      batch_counter += 1 
+      seq.to(device)
+
+      output,_ = model(seq, in_seq_len, out_seq_len)
+
+      eval_seq = seq[:, 1:, -1].unsqueeze(-1)
+
+      loss = criterion(eval_seq, output)
+      optimizer.zero_grad()
+      loss.backward()
+      optimizer.step()
+
+      step_id = losses[-1]['step_id'] if len(losses) > 0 else 0
+
+      loss_mesure = MeasuredLoss(
+          fold_id=fold_id,
+          step_id=step_id + 1,
+          epoch_id=early_stopping_counter,  # You need to set the correct epoch_id
+          batch_id=batch_counter,
+          split="train",
+          loss=loss.item()
+      )
+
+      losses.append(loss_mesure)
+
+
+
+      if batch_counter % valid_loss_eval_freq == 0:
+        loss_eval = evaluate(model=model, loader=valid_loader, in_seq_len=in_seq_len,
+                        out_seq_len=out_seq_len,device=device)
+        if lowest_validation_loss > loss_eval:
+          early_stopping_counter = 0
+          best_model = model
+          lowest_validation_loss = loss_eval
+          
+        else:
+          early_stopping_counter += 1
+        loss_mesure = MeasuredLoss(
+            fold_id=fold_id,
+            step_id=step_id + 1,
+            epoch_id=early_stopping_counter,  # You need to set the correct epoch_id
+            batch_id=batch_counter,
+            split="valid",
+            loss=loss_eval
+        )
+        losses.append(loss_mesure)
+      
+  return best_model, losses
+      
+
+
+      
 
 
 def cross_val_train(
@@ -345,4 +463,75 @@ def cross_val_train(
   else:
     end_date = min(end_date, boundaries[1])
   split_date = start_date + timedelta(days=2 * (end_date - start_date).days // 3)
-  raise NotImplementedError()
+  cross_val_losses: list[MeasuredLoss] = []
+  train_dataset = DailyTempSeqDataset(
+      start_date=start_date,
+      end_date=split_date,
+      seq_len=in_seq_len + out_seq_len + 1,
+      target_variable=target_variable,
+      device=device
+  )
+
+  test_dataset = DailyTempSeqDataset(
+      start_date=split_date,
+      end_date=end_date,
+      seq_len=in_seq_len + out_seq_len + 1,
+      target_variable=target_variable,
+      device=device
+  )
+
+  cross_best_model = None
+  lowest_lose = 0.0
+  fold_id = 0
+  cross_losses: list[MeasuredLoss] = []
+
+  for train_subset, valid_subset in iter_cross_val_folds(train_dataset):
+    train_loader = DataLoader(train_subset, batch_size=batch_size)
+    valid_loader = DataLoader(valid_subset, batch_size=batch_size)
+
+    best_model, losses = train_and_early_stop(
+        input_size=train_dataset.data.shape[-1],
+        hidden_size=hidden_size,
+        cell_cls=cell_cls,
+        train_loader=train_loader,
+        valid_loader=valid_loader,
+        in_seq_len=in_seq_len,
+        out_seq_len=out_seq_len,
+        early_stopping_patience=early_stopping_patience,
+        valid_loss_eval_freq=valid_loss_eval_freq,
+        fold_id=fold_id,  # You need to set the correct fold_id
+        device=device
+    )
+
+    best_loss = min(loss['loss'] for loss in losses if loss['split'] == 'valid')
+
+    validation_loss = [loss for loss in losses if loss["split"] == "valid"]
+
+    cross_val_losses.extend(validation_loss)
+
+    if cross_best_model is None:
+      print("cross_best_model is None")
+      cross_best_model = best_model
+      lowest_lose = best_loss
+    else:
+      if best_loss < lowest_lose:
+        print("best_loss < lowest_lose")
+        cross_best_model = best_model
+        lowest_lose = best_loss
+    
+    fold_id += 1
+
+  if (cross_best_model is None):
+    raise ValueError("No model was trained during cross validation")
+  test_loader = DataLoader(test_dataset, batch_size=batch_size)
+  test_loss = evaluate(cross_best_model, test_loader, in_seq_len, out_seq_len, device)
+    
+
+  return TrainingOutput(
+      best_cross_val_model=cross_best_model,
+      cross_val_losses=cross_val_losses,
+      test_loss=test_loss
+  )
+
+
+

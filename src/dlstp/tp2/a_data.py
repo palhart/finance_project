@@ -103,7 +103,7 @@ class DailyTempSeqDataset(Dataset):
       - do NOT load the data: you can calculate that simply from the start/end dates
 
     """
-    raise NotImplementedError()
+    return (self.end_date - self.start_date).days
 
   def __getitem__(self, index: int) -> Tensor:
     """
@@ -112,7 +112,7 @@ class DailyTempSeqDataset(Dataset):
     If the index is 0, it's the sequence that starts at date `start_date`, etc.
 
     """
-    raise NotImplementedError()
+    return self.__getitems__([index])[0]
 
   def __getitems__(self, indices: list) -> list[Tensor]:
     """
@@ -125,7 +125,7 @@ class DailyTempSeqDataset(Dataset):
     Show me your indexing/slicing skills!
 
     """
-    raise NotImplementedError()
+    return [self.data[i : i + self.seq_len] for i in indices]
 
   def __len__(self) -> int:
     """
@@ -136,7 +136,7 @@ class DailyTempSeqDataset(Dataset):
       - this is a very simple mathematical formula
 
     """
-    raise NotImplementedError()
+    return self.n_days - self.seq_len + 1
 
   @property
   def target_stdscale_mean(self) -> float:

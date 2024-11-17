@@ -47,7 +47,10 @@ class ElRegressor(Module):
     super().__init__()
     self.input_size = input_size
     self.cell_cls = cell_cls
-    raise NotImplementedError()
+    self.hidden_size = hidden_size
+    self.rnn = cell_cls(input_size, hidden_size, batch_first=True)
+    self.fc = Linear(hidden_size, 1)
+
 
   def forward(
     self,
@@ -97,7 +100,36 @@ class ElRegressor(Module):
       sequences one after the other.
 
     """
-    batch_size, seq_len, input_size = seq.size()
-    assert seq_len == in_seq_len + out_seq_len + 1
-    assert input_size == self.input_size
-    raise NotImplementedError()
+
+    predictions = torch.zeros(seq.size(0), in_seq_len + out_seq_len, 1).to(seq.device)
+
+    input_seq = seq[:, :in_seq_len, :]
+
+
+    out, h_n = self.rnn(input_seq, h0)
+
+
+    prediction = self.fc(out)
+
+    predictions[:, :in_seq_len, :] = prediction
+
+    last_hidden_state = h_n
+
+    last_prediction = prediction[:, -1, :].unsqueeze(1)
+
+
+    for i in range(0, out_seq_len):
+
+      current_seq = seq[:, in_seq_len + i , :-1].unsqueeze(1).clone()
+
+      new_seq = torch.cat((current_seq, last_prediction), dim=2)
+
+      out, h_n = self.rnn(new_seq, last_hidden_state)
+      last_hidden_state = h_n
+      prediction = self.fc(out)
+
+      last_prediction = prediction
+
+      predictions[:, in_seq_len + i, :] = prediction.squeeze(-1)
+
+    return predictions, last_hidden_state    
