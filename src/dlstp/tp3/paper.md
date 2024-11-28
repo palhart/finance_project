@@ -1,82 +1,70 @@
-# <REPLACE WITH PAPER FULL TITLE>
+# SiamQuality: a ConvNet-based foundation model for photoplethysmography signals
 
 ## What is the main problem addressed? In your own words.
 
-TODO
+The study tackles the challenge of processing and analyzing low-quality PPG signals, which are often compromised 
+by noise and artifacts caused by factors like motion or sensor displacement
 
 ## How can it help society? What are actual applications of this technology?
 
-TODO
+This model improves the reliability of health monitoring systems
 
 ## What are the limitations of previous approaches?
 
-TODO
+High sensitivity to noise: Previous models often fail when processing low-quality signals.
+
 
 ## What are the key novelties presented?
 
-TODO
+Signal Quality Pairing: A method that pairs high-quality and low-quality signals from similar physiological states.
+Curriculum Learning: Gradually trains the model with increasingly noisy signals to improve robustness.
+Foundation Model Design: Uses CNNs for self-supervised learning, achieving efficiency and robustness over transformers.
 
 ## Describe the dataset(s) used? What does it correspond to in the real world?
 
-TODO: domain (medical, etc.), multimodal?, sampling rate, sequence length, etc.
+Domain: Medical (intensive care unit data).
+Content: Over 36 million 30-second PPG signal pairs, sampled at 240 Hz and downsampled to 40 Hz.
+Real-World Context: Signals were collected from ICU patients, representing real-world noise and artifacts.
 
 ## ML training process (the pipeline)
 
 ### What data preprocessing and/or curation was used?
 
-TODO: removal of bad data, normalization, segmentation? etc.
+
+Downsampling PPG signals from 240 Hz to 40 Hz.
+Min-max normalization.
+Signal segmentation into 30-second clips.
+Quality assessment to categorize segments as high or low qualit
 
 ### Was data augmentation used? If so, describe the process.
 
-TODO: domain-specific augmentations?
-
-TODO: what invariances are these data augmentations aiming to encode?
+No 
 
 ### Describe the model's architecture
 
-TODO: CNN, LSTM, Transformer, etc.?
-
-TODO: what is the dimension of the learned representations?
+Base: ResNet backbone (CNN).
+Components:
+Encoder: Extracts high-level features.
+Projector: Maps features into lower-dimensional contrastive space.
+Predictor: Aligns paired features using cosine similarity loss.
 
 ### Describe the pre-training phase
 
-TODO: pretext/upstream tasks, their hypeparameters, contrastive learning?
-e.g. positive/negative pairs
-
-TODO: detail the loss that why minimized during pre-training
-
-TODO: what batch sizes were used? what optimiser?
-
-TODO: any specific training tricks? learning rate scheduling, warmup, etc. how did they
-avoid dimensional collapse? if applicable
-
-TODO: did they conduct hyperparameter exploration? If so what are the results?
+Task: Contrastive learning using signal quality pairs.
+Loss Function: Cosine similarity loss to align representations of paired signals.
+Hyperparameters:
+Large batch sizes.
+Learning rate schedules optimized for convergence.
 
 ### Describe how the model was evaluated
 
-TODO: methods used (e.g. k-NN zero-shot, linear probing, fine-tuning, etc.)
-
-TODO: detail the downstream tasks, the target variables, the size of the labelled
-dataset compared with the size of the unlabelled (pre-training) dataset
-
-TODO: transfer learning? how different is the target domain from the pre-training
-domain?
-
-TODO: detail the metrics reported and the results
-
-TODO: against what models are they benchmarking (don't give names of models, instead try
-to understand how these baseline models were trained differently compared to the
-proposed approach)
-
-TODO: describe if they drop a part of the model (projector head), which part they kept
-to obtain the representation used in evaluation
-
-TODO: did they conduct ablation studies? if so, what did they find?
+Methods: Fine-tuning for downstream tasks (e.g., respiratory rate estimation, atrial fibrillation detection).
+Metrics: Mean Absolute Error (MAE) for regression; F1 Score for classification.
+Baseline Models: Compared against methods like SimCLR, BYOL, and task-specific models.
+Downstream Data: Public datasets for tasks like heart rate estimation and blood pressure monitoring.
 
 ### Reproducibility
 
-TODO: is the code publicly available? what's the licence?
-
-TODO: is the pre-trained model weights publicly available? what's the licence?
-
-TODO: are the dataset and training pipeline publicly available?
+Code: Publicly available on GitHub.
+Pre-trained Weights: Not explicitly mentioned.
+Dataset: Pre-training dataset is restricted but downstream datasets are publicly accessible.
